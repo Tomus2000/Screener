@@ -131,26 +131,6 @@ fig, ax = plt.subplots(figsize=(10, 6))
 sns.heatmap(df.set_index("Ticker")[["Rev Growth", "EPS Growth", "ROE", "ROIC", "RSI", "12M Perf", "Investment Score (1–10)"]], cmap="coolwarm", annot=True, fmt=".2f", ax=ax)
 st.pyplot(fig)
 
-# Bar plot of investment scores
-st.subheader("🏆 Investment Score by Ticker")
-fig2, ax2 = plt.subplots(figsize=(10, 5))
-sns.barplot(x="Ticker", y="Investment Score (1–10)", data=df.sort_values("Investment Score (1–10)", ascending=False), palette="viridis", ax=ax2)
-ax2.set_ylim(0, 10)
-ax2.grid(axis='y')
-st.pyplot(fig2)
-
-# Line plot: 5-year price performance
-st.subheader("📈 5-Year Price Performance")
-fig3, ax3 = plt.subplots(figsize=(12, 6))
-for ticker, prices in price_data.items():
-    ax3.plot(prices, label=ticker)
-ax3.set_title("5-Year Stock Prices")
-ax3.set_xlabel("Date")
-ax3.set_ylabel("Price (USD)")
-ax3.legend()
-ax3.grid(True)
-st.pyplot(fig3)
-
 #new one here
 # Bar plot of investment scores (interactive)
 st.subheader("🏆 Investment Score by Ticker")
