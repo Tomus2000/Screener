@@ -127,12 +127,6 @@ st.subheader("📋 Screener Table")
 st.dataframe(df.set_index("Ticker"))
 
 # Heatmap
-st.subheader("🔥 Heatmap of Key Metrics")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.heatmap(df.set_index("Ticker")[["Rev Growth", "EPS Growth", "ROE", "ROIC", "RSI", "12M Perf", "Investment Score (1–10)"]], cmap="coolwarm", annot=True, fmt=".2f", ax=ax)
-st.pyplot(fig)
-
-#new one here
 import plotly.figure_factory as ff
 
 st.subheader("🔥 Interactive Heatmap of Key Metrics")
