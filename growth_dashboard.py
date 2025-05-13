@@ -197,3 +197,39 @@ fig3.update_layout(
     hovermode="x unified"
 )
 st.plotly_chart(fig3, use_container_width=True)
+
+# 📍 Dividend Lollipop Chart
+st.subheader("💡 Dividend Yield: Lollipop Style")
+
+if not dividend_df.empty:
+    fig_lollipop = go.Figure()
+
+    fig_lollipop.add_trace(go.Scatter(
+        x=dividend_df["Dividend Yield (%)"],
+        y=dividend_df["Ticker"],
+        mode='markers+text',
+        marker=dict(color='royalblue', size=10),
+        text=[f"{val:.2f}%" for val in dividend_df["Dividend Yield (%)"]],
+        textposition="middle right",
+        orientation='h'
+    ))
+
+    for i, row in dividend_df.iterrows():
+        fig_lollipop.add_shape(
+            type='line',
+            x0=0, x1=row["Dividend Yield (%)"],
+            y0=row["Ticker"], y1=row["Ticker"],
+            line=dict(color="lightgray", width=2)
+        )
+
+    fig_lollipop.update_layout(
+        title="Dividend Yield per Stock (Lollipop Chart)",
+        xaxis_title="Dividend Yield (%)",
+        yaxis_title="Ticker",
+        height=500,
+        showlegend=False
+    )
+
+    st.plotly_chart(fig_lollipop, use_container_width=True)
+else:
+    st.info("No dividend-paying stocks in the current watchlist.")
