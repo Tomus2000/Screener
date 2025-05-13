@@ -160,6 +160,33 @@ fig_heatmap.update_layout(
 
 st.plotly_chart(fig_heatmap, use_container_width=True)
 
+# 📉 Dividend Yield Bar Chart (if data is available)
+st.subheader("💰 Current Dividend Yields")
+
+# Safely extract dividend yield and drop missing
+dividend_df = df[["Ticker", "Company"]].copy()
+dividend_df["Dividend Yield (%)"] = [
+    round(stock.info.get("dividendYield", 0) * 100, 2) if stock.info.get("dividendYield") else 0
+    for stock in [yf.Ticker(t) for t in df["Ticker"]]
+]
+
+# Filter only stocks with dividends > 0
+dividend_df = dividend_df[dividend_df["Dividend Yield (%)"] > 0]
+
+if not dividend_df.empty:
+    fig_div = px.bar(
+        dividend_df.sort_values("Dividend Yield (%)", ascending=False),
+        x="Ticker",
+        y="Dividend Yield (%)",
+        color="Dividend Yield (%)",
+        title="Current Dividend Yields by Stock",
+        labels={"Dividend Yield (%)": "Yield (%)"},
+        color_continuous_scale="blues"
+    )
+    st.plotly_chart(fig_div, use_container_width=True)
+else:
+    st.info("No dividend-paying stocks in the current watchlist.")
+
 #new one here
 # Bar plot of investment scores (interactive)
 st.subheader("🏆 Investment Score by Ticker")
