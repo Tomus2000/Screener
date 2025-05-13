@@ -28,6 +28,10 @@ tickers_input = st.sidebar.text_input(
     "Enter tickers (comma-separated)", 
     value="AXON, CELH, DUOL, INTA, IOT, APP, ENPH, ON, DT, GLOB, ADYEN"
 )
+#Modify
+st.sidebar.subheader("🔍 Filters")
+min_score = st.sidebar.slider("Minimum Investment Score", 1, 10, 1)
+min_yield = st.sidebar.slider("Minimum Dividend Yield (%)", 0.0, 10.0, 0.0)
 
 # Convert user input into a list
 watchlist = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
@@ -120,6 +124,10 @@ with st.spinner("Fetching data..."):
         except Exception as e:
             st.warning(f"Error with {ticker}: {e}")
 
+#Filter dataframe
+df = df[df["Investment Score (1–10)"] >= min_score]
+df = df[df["Dividend Yield (%)"] >= min_yield]
+
 # Display dataframe
 df = pd.DataFrame(results).fillna(0)
 st.subheader("📋 Screener Table")
@@ -161,24 +169,6 @@ fig_heatmap.update_layout(
     margin=dict(l=40, r=40, t=40, b=40)
 )
 st.plotly_chart(fig_heatmap, use_container_width=True)
-
-# 📉 Dividend Yield Bar Chart
-st.subheader("💰 Current Dividend Yields")
-dividend_df = df[df["Dividend Yield (%)"] > 0][["Ticker", "Company", "Dividend Yield (%)"]]
-
-if not dividend_df.empty:
-    fig_div = px.bar(
-        dividend_df.sort_values("Dividend Yield (%)", ascending=False),
-        x="Ticker",
-        y="Dividend Yield (%)",
-        color="Dividend Yield (%)",
-        title="Current Dividend Yields by Stock",
-        labels={"Dividend Yield (%)": "Yield (%)"},
-        color_continuous_scale="blues"
-    )
-    st.plotly_chart(fig_div, use_container_width=True)
-else:
-    st.info("No dividend-paying stocks in the current watchlist.")
 
 # Bar plot of investment scores (interactive)
 st.subheader("🏆 Investment Score by Ticker")
