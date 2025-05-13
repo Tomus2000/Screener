@@ -29,6 +29,22 @@ tickers_input = st.sidebar.text_input(
     value="AXON, CELH, DUOL, INTA, IOT, APP, ENPH, ON, DT, GLOB, ADYEN"
 )
 
+#Download Excel
+@st.cache_data
+def convert_df(df):
+    return df.to_csv(index=False).encode('utf-8')
+
+csv = convert_df(df)
+st.download_button("⬇️ Download Results as CSV", csv, "screener_results.csv", "text/csv")
+
+#Filters
+st.sidebar.subheader("🔍 Filters")
+min_score = st.sidebar.slider("Minimum Investment Score", 1, 10, 1)
+min_yield = st.sidebar.slider("Minimum Dividend Yield (%)", 0.0, 10.0, 0.0)
+
+df = df[df["Investment Score (1–10)"] >= min_score]
+df = df[df["Dividend Yield (%)"] >= min_yield]
+
 # Convert user input into a list
 watchlist = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
 
