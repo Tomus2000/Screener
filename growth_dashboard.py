@@ -196,3 +196,6 @@ fig3.update_layout(
     hovermode="x unified"
 )
 st.plotly_chart(fig3, use_container_width=True)
+
+top_growth = df.sort_values("Rev Growth", ascending=False).iloc[0]["Ticker"]
+st.success(f"📈 Best Growth: {top_growth}")
