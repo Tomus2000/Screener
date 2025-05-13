@@ -20,10 +20,16 @@ st.title("📊 Growth Stock Screener Dashboard")
 st.markdown("Analyze growth, quality, momentum, and valuation metrics across your custom watchlist.")
 
 # Define watchlist
-watchlist = [
-    "AXON", "CELH", "DUOL", "INTA", "IOT",
-    "APP", "ENPH", "ON", "DT", "GLOB", "ADYEN",
-]
+# Sidebar input
+st.sidebar.header("⚙️ Stock Selection")
+tickers_input = st.sidebar.text_input(
+    "Enter tickers (comma-separated)", 
+    value="AXON, CELH, DUOL, INTA, IOT, APP, ENPH, ON, DT, GLOB, ADYEN"
+)
+
+# Convert user input into a list
+watchlist = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
+
 
 price_data = {}
 results = []
