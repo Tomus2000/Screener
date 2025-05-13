@@ -124,10 +124,6 @@ with st.spinner("Fetching data..."):
         except Exception as e:
             st.warning(f"Error with {ticker}: {e}")
 
-#Filter dataframe
-df = df[df["Investment Score (1–10)"] >= min_score]
-df = df[df["Dividend Yield (%)"] >= min_yield]
-
 # Display dataframe
 df = pd.DataFrame(results).fillna(0)
 st.subheader("📋 Screener Table")
