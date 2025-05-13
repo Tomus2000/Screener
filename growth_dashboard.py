@@ -21,41 +21,6 @@ st.set_page_config(layout="wide")
 st.title("📊 Growth Stock Screener Dashboard")
 st.markdown("Analyze growth, quality, momentum, and valuation metrics across your custom watchlist.")
 
-#new one here
-import plotly.figure_factory as ff
-
-st.subheader("🔥 Interactive Heatmap of Key Metrics")
-
-# Extract the data
-heatmap_df = df.set_index("Ticker")[["Rev Growth", "EPS Growth", "ROE", "ROIC", "RSI", "12M Perf", "Investment Score (1–10)"]]
-
-# Convert to 2D array for plotly
-z = heatmap_df.values
-x = heatmap_df.columns.tolist()
-y = heatmap_df.index.tolist()
-
-# Create interactive heatmap
-fig_heatmap = ff.create_annotated_heatmap(
-    z=z,
-    x=x,
-    y=y,
-    colorscale='RdBu',
-    showscale=True,
-    annotation_text=[[f"{val:.2f}" for val in row] for row in z],
-    hoverinfo='z'
-)
-
-fig_heatmap.update_layout(
-    title="Key Financial Metrics per Ticker",
-    xaxis_title="Metric",
-    yaxis_title="Ticker",
-    autosize=True,
-    margin=dict(l=40, r=40, t=40, b=40)
-)
-
-st.plotly_chart(fig_heatmap, use_container_width=True)
-
-
 
 # Define watchlist
 # Sidebar input
@@ -166,6 +131,40 @@ st.subheader("🔥 Heatmap of Key Metrics")
 fig, ax = plt.subplots(figsize=(10, 6))
 sns.heatmap(df.set_index("Ticker")[["Rev Growth", "EPS Growth", "ROE", "ROIC", "RSI", "12M Perf", "Investment Score (1–10)"]], cmap="coolwarm", annot=True, fmt=".2f", ax=ax)
 st.pyplot(fig)
+
+#new one here
+import plotly.figure_factory as ff
+
+st.subheader("🔥 Interactive Heatmap of Key Metrics")
+
+# Extract the data
+heatmap_df = df.set_index("Ticker")[["Rev Growth", "EPS Growth", "ROE", "ROIC", "RSI", "12M Perf", "Investment Score (1–10)"]]
+
+# Convert to 2D array for plotly
+z = heatmap_df.values
+x = heatmap_df.columns.tolist()
+y = heatmap_df.index.tolist()
+
+# Create interactive heatmap
+fig_heatmap = ff.create_annotated_heatmap(
+    z=z,
+    x=x,
+    y=y,
+    colorscale='RdBu',
+    showscale=True,
+    annotation_text=[[f"{val:.2f}" for val in row] for row in z],
+    hoverinfo='z'
+)
+
+fig_heatmap.update_layout(
+    title="Key Financial Metrics per Ticker",
+    xaxis_title="Metric",
+    yaxis_title="Ticker",
+    autosize=True,
+    margin=dict(l=40, r=40, t=40, b=40)
+)
+
+st.plotly_chart(fig_heatmap, use_container_width=True)
 
 #new one here
 # Bar plot of investment scores (interactive)
