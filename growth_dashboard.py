@@ -28,25 +28,6 @@ tickers_input = st.sidebar.text_input(
     "Enter tickers (comma-separated)", 
     value="AXON, CELH, DUOL, INTA, IOT, APP, ENPH, ON, DT, GLOB, ADYEN"
 )
-@st.cache_data
-def convert_df(df):
-    return df.to_csv(index=False).encode("utf-8")
-
-#Download Excel
-@st.cache_data
-def convert_df(df):
-    return df.to_csv(index=False).encode('utf-8')
-
-csv = convert_df(df)
-st.download_button("⬇️ Download Results as CSV", csv, "screener_results.csv", "text/csv")
-
-#Filters
-st.sidebar.subheader("🔍 Filters")
-min_score = st.sidebar.slider("Minimum Investment Score", 1, 10, 1)
-min_yield = st.sidebar.slider("Minimum Dividend Yield (%)", 0.0, 10.0, 0.0)
-
-df = df[df["Investment Score (1–10)"] >= min_score]
-df = df[df["Dividend Yield (%)"] >= min_yield]
 
 # Convert user input into a list
 watchlist = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
@@ -144,6 +125,19 @@ df = pd.DataFrame(results).fillna(0)
 st.subheader("📋 Screener Table")
 st.dataframe(df.set_index("Ticker"))
 
+# Excel export
+@st.cache_data
+def convert_df(df):
+    return df.to_csv(index=False).encode("utf-8")
+
+csv = convert_df(df)
+st.download_button(
+    label="⬇️ Download Screener Results as CSV",
+    data=csv,
+    file_name="growth_screener_results.csv",
+    mime="text/csv"
+)
+
 # Heatmap
 st.subheader("🔥 Interactive Heatmap of Key Metrics")
 heatmap_df = df.set_index("Ticker")[["Rev Growth", "EPS Growth", "ROE", "ROIC", "RSI", "12M Perf", "Investment Score (1–10)"]]
@@ -168,6 +162,23 @@ fig_heatmap.update_layout(
 )
 st.plotly_chart(fig_heatmap, use_container_width=True)
 
+# 📉 Dividend Yield Bar Chart
+st.subheader("💰 Current Dividend Yields")
+dividend_df = df[df["Dividend Yield (%)"] > 0][["Ticker", "Company", "Dividend Yield (%)"]]
+
+if not dividend_df.empty:
+    fig_div = px.bar(
+        dividend_df.sort_values("Dividend Yield (%)", ascending=False),
+        x="Ticker",
+        y="Dividend Yield (%)",
+        color="Dividend Yield (%)",
+        title="Current Dividend Yields by Stock",
+        labels={"Dividend Yield (%)": "Yield (%)"},
+        color_continuous_scale="blues"
+    )
+    st.plotly_chart(fig_div, use_container_width=True)
+else:
+    st.info("No dividend-paying stocks in the current watchlist.")
 
 # Bar plot of investment scores (interactive)
 st.subheader("🏆 Investment Score by Ticker")
@@ -199,5 +210,3 @@ fig3.update_layout(
     hovermode="x unified"
 )
 st.plotly_chart(fig3, use_container_width=True)
-
-
