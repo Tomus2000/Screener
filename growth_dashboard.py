@@ -28,6 +28,9 @@ tickers_input = st.sidebar.text_input(
     "Enter tickers (comma-separated)", 
     value="AXON, CELH, DUOL, INTA, IOT, APP, ENPH, ON, DT, GLOB, ADYEN"
 )
+@st.cache_data
+def convert_df(df):
+    return df.to_csv(index=False).encode("utf-8")
 
 #Download Excel
 @st.cache_data
