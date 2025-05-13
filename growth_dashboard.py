@@ -9,6 +9,7 @@ Original file is located at
 
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.figure_factory as ff
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -19,10 +20,8 @@ import seaborn as sns
 st.set_page_config(layout="wide")
 
 st.title("📊 Growth Stock Screener Dashboard")
-st.markdown("Analyze growth, quality, momentum, and valuation metrics across your custom watchlist.")
+st.markdown("Analyze growth, quality, momentum, valuation, and dividend metrics across your custom watchlist.")
 
-
-# Define watchlist
 # Sidebar input
 st.sidebar.header("⚙️ Stock Selection")
 tickers_input = st.sidebar.text_input(
@@ -32,7 +31,6 @@ tickers_input = st.sidebar.text_input(
 
 # Convert user input into a list
 watchlist = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
-
 
 price_data = {}
 results = []
@@ -111,7 +109,8 @@ with st.spinner("Fetching data..."):
                 "ROIC": round(roic, 4) if roic else None,
                 "RSI": round(latest_rsi, 2) if latest_rsi else None,
                 "12M Perf": perf_12m,
-                "Investment Score (1–10)": round(investment_score, 2)
+                "Investment Score (1–10)": round(investment_score, 2),
+                "Dividend Yield (%)": round(info.get("dividendYield", 0) * 100, 2) if info.get("dividendYield") else 0
             })
 
             hist_5y = stock.history(period="5y", interval="1d")
@@ -127,19 +126,11 @@ st.subheader("📋 Screener Table")
 st.dataframe(df.set_index("Ticker"))
 
 # Heatmap
-import plotly.figure_factory as ff
-
 st.subheader("🔥 Interactive Heatmap of Key Metrics")
-
-# Extract the data
 heatmap_df = df.set_index("Ticker")[["Rev Growth", "EPS Growth", "ROE", "ROIC", "RSI", "12M Perf", "Investment Score (1–10)"]]
-
-# Convert to 2D array for plotly
 z = heatmap_df.values
 x = heatmap_df.columns.tolist()
 y = heatmap_df.index.tolist()
-
-# Create interactive heatmap
 fig_heatmap = ff.create_annotated_heatmap(
     z=z,
     x=x,
@@ -149,7 +140,6 @@ fig_heatmap = ff.create_annotated_heatmap(
     annotation_text=[[f"{val:.2f}" for val in row] for row in z],
     hoverinfo='z'
 )
-
 fig_heatmap.update_layout(
     title="Key Financial Metrics per Ticker",
     xaxis_title="Metric",
@@ -157,21 +147,11 @@ fig_heatmap.update_layout(
     autosize=True,
     margin=dict(l=40, r=40, t=40, b=40)
 )
-
 st.plotly_chart(fig_heatmap, use_container_width=True)
 
-# 📉 Dividend Yield Bar Chart (if data is available)
+# 📉 Dividend Yield Bar Chart
 st.subheader("💰 Current Dividend Yields")
-
-# Safely extract dividend yield and drop missing
-dividend_df = df[["Ticker", "Company"]].copy()
-dividend_df["Dividend Yield (%)"] = [
-    round(stock.info.get("dividendYield", 0) * 100, 2) if stock.info.get("dividendYield") else 0
-    for stock in [yf.Ticker(t) for t in df["Ticker"]]
-]
-
-# Filter only stocks with dividends > 0
-dividend_df = dividend_df[dividend_df["Dividend Yield (%)"] > 0]
+dividend_df = df[df["Dividend Yield (%)"] > 0][["Ticker", "Company", "Dividend Yield (%)"]]
 
 if not dividend_df.empty:
     fig_div = px.bar(
@@ -187,10 +167,8 @@ if not dividend_df.empty:
 else:
     st.info("No dividend-paying stocks in the current watchlist.")
 
-#new one here
 # Bar plot of investment scores (interactive)
 st.subheader("🏆 Investment Score by Ticker")
-
 fig2 = px.bar(
     df.sort_values("Investment Score (1–10)", ascending=False),
     x="Ticker",
@@ -204,7 +182,6 @@ st.plotly_chart(fig2, use_container_width=True)
 
 # Interactive line chart
 st.subheader("📈 5-Year Price Performance")
-
 fig3 = go.Figure()
 for ticker, prices in price_data.items():
     fig3.add_trace(go.Scatter(
@@ -213,7 +190,6 @@ for ticker, prices in price_data.items():
         mode='lines',
         name=ticker
     ))
-
 fig3.update_layout(
     title="5-Year Stock Price History",
     xaxis_title="Date",
