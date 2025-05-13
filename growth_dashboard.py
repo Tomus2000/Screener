@@ -173,7 +173,7 @@ fig2 = px.bar(
     x="Ticker",
     y="Investment Score (1–10)",
     color="Investment Score (1–10)",
-    color_continuous_scale="inferno",
+    color_continuous_scale="tempo",
     title="Investment Score Ranking",
     labels={"Investment Score (1–10)": "Score"}
 )
