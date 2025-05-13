@@ -165,3 +165,23 @@ fig2 = px.bar(
     labels={"Investment Score (1–10)": "Score"}
 )
 st.plotly_chart(fig2, use_container_width=True)
+
+# Interactive line chart
+st.subheader("📈 5-Year Price Performance")
+
+fig3 = go.Figure()
+for ticker, prices in price_data.items():
+    fig3.add_trace(go.Scatter(
+        x=prices.index,
+        y=prices.values,
+        mode='lines',
+        name=ticker
+    ))
+
+fig3.update_layout(
+    title="5-Year Stock Price History",
+    xaxis_title="Date",
+    yaxis_title="Price (USD)",
+    hovermode="x unified"
+)
+st.plotly_chart(fig3, use_container_width=True)
