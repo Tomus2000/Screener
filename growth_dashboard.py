@@ -181,20 +181,4 @@ fig3.update_layout(
 )
 st.plotly_chart(fig3, use_container_width=True)
 
-# 📉 Dividend Yield Bar Chart
-st.subheader("💰 Current Dividend Yields")
-dividend_df = df[df["Dividend Yield (%)"] > 0][["Ticker", "Company", "Dividend Yield (%)"]]
 
-if not dividend_df.empty:
-    fig_div = px.bar(
-        dividend_df.sort_values("Dividend Yield (%)", ascending=False),
-        x="Ticker",
-        y="Dividend Yield (%)",
-        color="Dividend Yield (%)",
-        title="Current Dividend Yields by Stock",
-        labels={"Dividend Yield (%)": "Yield (%)"},
-        color_continuous_scale="blues"
-    )
-    st.plotly_chart(fig_div, use_container_width=True)
-else:
-    st.info("No dividend-paying stocks in the current watchlist.")
