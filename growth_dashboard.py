@@ -201,39 +201,5 @@ fig3.update_layout(
 st.plotly_chart(fig3, use_container_width=True)
 
 
-# Allow user to select time range
-st.subheader("📈 Price Performance Over Time")
-time_range = st.selectbox("Select time range", options=["1Y", "3Y", "5Y", "10Y"])
-
-# Define the time delta based on selection
-years_map = {
-    "1Y": 1,
-    "3Y": 3,
-    "5Y": 5,
-    "10Y": 10
-}
-cutoff_date = datetime.today() - timedelta(days=365 * years_map[time_range])
-
-# Plot the chart
-fig3 = go.Figure()
-for ticker, prices in price_data.items():
-    # Filter by date
-    filtered_prices = prices[prices.index >= cutoff_date]
-    fig3.add_trace(go.Scatter(
-        x=filtered_prices.index,
-        y=filtered_prices.values,
-        mode='lines',
-        name=ticker
-    ))
-
-fig3.update_layout(
-    title=f"{time_range} Stock Price History",
-    xaxis_title="Date",
-    yaxis_title="Price (USD)",
-    hovermode="x unified"
-)
-
-st.plotly_chart(fig3, use_container_width=True)
-
 top_growth = df.sort_values("Rev Growth", ascending=False).iloc[0]["Ticker"]
 st.success(f"📈 Best Growth: {top_growth}")
