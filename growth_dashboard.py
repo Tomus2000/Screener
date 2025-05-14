@@ -31,18 +31,6 @@ tickers_input = st.sidebar.text_input(
     value="AXON, CELH, DUOL, INTA, IOT, APP, ENPH, ON, DT, GLOB, ADYEN"
 )
 
-# Allow user to select time range
-st.subheader("📈 Price Performance Over Time")
-time_range = st.selectbox("Select time range", options=["1Y", "3Y", "5Y", "10Y"])
-
-# Define the time delta based on selection
-years_map = {
-    "1Y": 1,
-    "3Y": 3,
-    "5Y": 5,
-    "10Y": 10
-}
-cutoff_date = datetime.today() - timedelta(days=365 * years_map[time_range])
 #Modify
 st.sidebar.subheader("🔍 Filters")
 min_score = st.sidebar.slider("Minimum Investment Score", 1, 10, 1)
@@ -211,6 +199,20 @@ fig3.update_layout(
     hovermode="x unified"
 )
 st.plotly_chart(fig3, use_container_width=True)
+
+
+# Allow user to select time range
+st.subheader("📈 Price Performance Over Time")
+time_range = st.selectbox("Select time range", options=["1Y", "3Y", "5Y", "10Y"])
+
+# Define the time delta based on selection
+years_map = {
+    "1Y": 1,
+    "3Y": 3,
+    "5Y": 5,
+    "10Y": 10
+}
+cutoff_date = datetime.today() - timedelta(days=365 * years_map[time_range])
 
 # Plot the chart
 fig3 = go.Figure()
