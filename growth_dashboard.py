@@ -33,7 +33,7 @@ tickers_input = st.sidebar.text_input(
 # Filters
 st.sidebar.subheader("🔍 Filters")
 min_score = st.sidebar.slider("Minimum Investment Score", 1, 100, 1)
-#min_yield = st.sidebar.slider("Minimum Dividend Yield (%)", 0.0, 10.0, 0.0)
+min_yield = st.sidebar.slider("Minimum Dividend Yield (%)", 0.0, 10.0, 0.0)
 
 # Convert user input into a list
 watchlist = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
@@ -75,8 +75,10 @@ with st.spinner("Fetching data..."):
             eps_growth = eps_growth if eps_growth is not None else fundamentals.get("metric", {}).get("epsGrowth")
             rev_growth = rev_growth if rev_growth is not None else fundamentals.get("metric", {}).get("revenueGrowthYearOverYear")
             roe = roe if roe is not None else fundamentals.get("metric", {}).get("roe")
+            dividend_yield = dividend_yield if dividend_yield is not None else fundamentals.get("metric", {}).get("dividendYieldIndicatedAnnual")
             perf_12m = perf_12m if perf_12m is not None else fundamentals.get("metric", {}).get("52WeekPriceReturnDaily")
             profit_margin = fundamentals.get("metric", {}).get("netProfitMarginAnnual")
+beta = info.get("beta") or fundamentals.get("metric", {}).get("beta")
 
             # PEG
             peg = (pe / (rev_growth * 100)) if pe and rev_growth else None
@@ -133,6 +135,7 @@ with st.spinner("Fetching data..."):
                 "Earnings Surprise (%)": earnings_surprise,
                 "ROE": roe,
                 "Profit Margin (%)": round(profit_margin * 100, 2),
+                "Beta": round(beta, 2) if beta else None,
                 "RSI": round(latest_rsi, 2) if latest_rsi else None,
                 "12M Perf": perf_12m,
                 "Investment Score (1–100)": round(investment_score, 2),
@@ -174,7 +177,7 @@ st.download_button(
 st.subheader("🔥 Interactive Heatmap of Key Metrics")
 heatmap_df = df.set_index("Ticker")[[
     "Rev Growth", "EPS Growth", "Earnings Surprise (%)",
-    "ROE", "Profit Margin (%)", "RSI", "12M Perf", "Investment Score (1–100)"
+    "ROE", "Profit Margin (%)", "Beta", "RSI", "12M Perf", "Investment Score (1–100)"
 ]]
 z = heatmap_df.values
 x = heatmap_df.columns.tolist()
@@ -214,6 +217,8 @@ st.plotly_chart(fig2, use_container_width=True)
 st.subheader("📈 5-Year Price Performance")
 fig3 = go.Figure()
 for ticker, prices in price_data.items():
+    if ticker not in df['Ticker'].values:
+        continue
     fig3.add_trace(go.Scatter(
         x=prices.index,
         y=prices.values,
@@ -231,3 +236,4 @@ st.plotly_chart(fig3, use_container_width=True)
 # Highlight best growth stock
 top_growth = df.sort_values("Rev Growth", ascending=False).iloc[0]["Ticker"]
 st.success(f"📈 Best Growth: {top_growth}")
+
