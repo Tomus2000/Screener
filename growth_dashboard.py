@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Growth Stock Screener Dashboard with Earnings Surprise from Alpha Vantage"""
+"""Growth Stock Screener Dashboard using Finnhub and YFinance"""
 
 import requests
 import time
 
-# 🔑 Alpha Vantage API key
-ALPHA_VANTAGE_API_KEY = "EAGWCBAFZUOKCABO"
-alpha_calls_today = 0
-alpha_max_calls = 25  # Free daily limit
+# 🔑 Finnhub API key
+FINNHUB_API_KEY = "d0hiea9r01qup0c6eeugd0hiea9r01qup0c6eev0"
 
 import plotly.express as px
 import plotly.graph_objects as go
@@ -34,7 +32,7 @@ tickers_input = st.sidebar.text_input(
 
 # Filters
 st.sidebar.subheader("🔍 Filters")
-min_score = st.sidebar.slider("Minimum Investment Score", 1, 10, 1)
+min_score = st.sidebar.slider("Minimum Investment Score", 1, 100, 1)
 min_yield = st.sidebar.slider("Minimum Dividend Yield (%)", 0.0, 10.0, 0.0)
 
 # Convert user input into a list
@@ -43,36 +41,44 @@ watchlist = [ticker.strip().upper() for ticker in tickers_input.split(",") if ti
 price_data = {}
 results = []
 
-# Earnings Surprise Function
-def get_earnings_surprise(ticker):
-    global alpha_calls_today
-    if alpha_calls_today >= alpha_max_calls:
-        return None
-
-    url = f"https://www.alphavantage.co/query?function=EARNINGS&symbol={ticker}&apikey={ALPHA_VANTAGE_API_KEY}"
-    try:
-        response = requests.get(url)
-        alpha_calls_today += 1
-        if response.status_code == 200:
-            data = response.json()
-            q_earnings = data.get("quarterlyEarnings", [])
-            if q_earnings:
-                latest = q_earnings[0]
-                actual = float(latest.get("reportedEPS", 0))
-                estimate = float(latest.get("estimatedEPS", 0))
-                if estimate != 0:
-                    return round((actual - estimate) / estimate * 100, 2)
-        return None
-    except:
-        return None
+# Finnhub data fetcher
+finnhub_url = "https://finnhub.io/api/v1"
+def get_finnhub_json(endpoint, params):
+    params['token'] = FINNHUB_API_KEY
+    response = requests.get(f"{finnhub_url}/{endpoint}", params=params)
+    return response.json() if response.status_code == 200 else {}
 
 with st.spinner("Fetching data..."):
     for ticker in watchlist:
         try:
+            # Use yfinance for price charting only
             stock = yf.Ticker(ticker)
-            info = stock.info
-            history = stock.history(period="6mo", interval="1d")
+            hist_5y = stock.history(period="5y", interval="1d")
+            if not hist_5y.empty:
+                price_data[ticker] = hist_5y['Close']
 
+            # Finnhub data
+            profile = get_finnhub_json("stock/profile2", {"symbol": ticker})
+            quote = get_finnhub_json("quote", {"symbol": ticker})
+            fundamentals = get_finnhub_json("stock/metric", {"symbol": ticker, "metric": "all"})
+            earnings = get_finnhub_json("stock/earnings", {"symbol": ticker})
+
+            # Metrics
+            pe = fundamentals.get("metric", {}).get("peNormalizedAnnual")
+            eps_growth = fundamentals.get("metric", {}).get("epsGrowth")
+            rev_growth = fundamentals.get("metric", {}).get("revenueGrowthYearOverYear")
+            roe = fundamentals.get("metric", {}).get("roe")
+            perf_12m = fundamentals.get("metric", {}).get("52WeekPriceReturnDaily")
+            dividend_yield = fundamentals.get("metric", {}).get("dividendYieldIndicatedAnnual")
+
+            # PEG
+            peg = (pe / (rev_growth * 100)) if pe and rev_growth else None
+
+            # ROIC is not available in Finnhub API — placeholder
+            profit_margin = fundamentals.get("metric", {}).get("netProfitMarginAnnual")
+
+            # RSI using yfinance data
+            history = stock.history(period="6mo", interval="1d")
             delta = history['Close'].diff()
             gain = delta.clip(lower=0).rolling(window=14).mean()
             loss = -delta.clip(upper=0).rolling(window=14).mean()
@@ -80,79 +86,57 @@ with st.spinner("Fetching data..."):
             RSI = 100 - (100 / (1 + RS))
             latest_rsi = RSI.iloc[-1] if not RSI.empty else None
 
-            pe = info.get("trailingPE", None)
-            if pe is not None:
-                pe = min(pe, 100)
-            eps_growth = max(min(info.get("earningsQuarterlyGrowth", 0), 2), -1)
-            rev_growth = max(min(info.get("revenueGrowth", 0), 2), -1)
-            roe = max(min(info.get("returnOnEquity", 0), 2), -1)
-            perf_12m = max(min(info.get("52WeekChange", 0), 2), -1)
-
-            peg = (pe / (rev_growth * 100)) if pe and rev_growth else None
-
-            bs = stock.balance_sheet
-            is_ = stock.financials
+            # Earnings Surprise
             try:
-                EBIT = is_.loc["EBIT"].iloc[0] if "EBIT" in is_.index else None
-                TotalDebt = bs.loc["Long Term Debt"].iloc[0] + bs.loc["Short Long Term Debt"].iloc[0] if "Long Term Debt" in bs.index and "Short Long Term Debt" in bs.index else None
-                TotalEquity = bs.loc["Total Stockholder Equity"].iloc[0] if "Total Stockholder Equity" in bs.index else None
-                Cash = bs.loc["Cash"] if "Cash" in bs.index else 0
-                TaxRate = 0.21
-                if EBIT and TotalDebt and TotalEquity:
-                    NOPAT = EBIT * (1 - TaxRate)
-                    IC = TotalDebt + TotalEquity - Cash.iloc[0] if not isinstance(Cash, (int, float)) else TotalDebt + TotalEquity - Cash
-                    roic = NOPAT / IC if IC != 0 else None
-                else:
-                    roic = None
+                latest_earn = earnings[0]
+                actual_eps = latest_earn.get("actual")
+                estimate_eps = latest_earn.get("estimate")
+                earnings_surprise = round((actual_eps - estimate_eps) / estimate_eps * 100, 2) if actual_eps and estimate_eps else 0
             except:
-                roic = None
+                earnings_surprise = 0
 
-            roic = max(min(roic or 0, 2), -1)
+            # Scores
+            eps_growth = max(min(eps_growth if eps_growth is not None else 0, 2), -1)
+            rev_growth = max(min(rev_growth if rev_growth is not None else 0, 2), -1)
+            roe = max(min(roe if roe is not None else 0, 2), -1)
+            perf_12m = max(min(perf_12m if perf_12m is not None else 0, 2), -1)
+            profit_margin = max(min(profit_margin if profit_margin is not None else 0, 2), -1)
 
-            earnings_surprise = get_earnings_surprise(ticker)
             earnings_surprise_score = max(min((earnings_surprise or 0) / 50, 1), -1)
-
             growth_score = np.mean([rev_growth, eps_growth])
-            quality_score = np.mean([roe, roic])
+            quality_score = np.mean([roe, profit_margin])
             momentum_score = perf_12m
             valuation_score = max(min((50 - pe) / 50, 1), -1) if pe else 0
 
             raw_score = (
-    0.35 * growth_score +
-    0.2 * momentum_score +
-    0.2 * quality_score +
-    0.15 * earnings_surprise_score +
-    0.1 * valuation_score
-)
+                0.35 * growth_score +
+                0.2 * momentum_score +
+                0.2 * quality_score +
+                0.15 * earnings_surprise_score +
+                0.1 * valuation_score
+            )
 
             investment_score = max(1, min(100, ((raw_score + 1) * 50)))
 
             results.append({
                 "Ticker": ticker,
-                "Company": info.get("shortName", ""),
-                "Industry": info.get("industry", ""),
+                "Company": profile.get("name", ""),
+                "Industry": profile.get("finnhubIndustry", ""),
                 "PE": pe,
                 "PEG": round(peg, 2) if peg else None,
                 "Rev Growth": rev_growth,
                 "EPS Growth": eps_growth,
                 "Earnings Surprise (%)": earnings_surprise,
                 "ROE": roe,
-                "ROIC": round(roic, 4) if roic else None,
+                "Profit Margin (%)": round(profit_margin * 100, 2),
                 "RSI": round(latest_rsi, 2) if latest_rsi else None,
                 "12M Perf": perf_12m,
-                "Investment Score (1–10)": round(investment_score, 2),
-                "Dividend Yield (%)": round(info.get("dividendYield", 0) * 100, 2) if info.get("dividendYield") else 0
+                "Investment Score (1–100)": round(investment_score, 2),
+                "Dividend Yield (%)": round(dividend_yield * 100, 2) if dividend_yield else 0
             })
-
-            hist_5y = stock.history(period="5y", interval="1d")
-            if not hist_5y.empty:
-                price_data[ticker] = hist_5y['Close']
 
         except Exception as e:
             st.warning(f"Error with {ticker}: {e}")
-
-    if alpha_calls_today >= alpha_max_calls:
-        st.warning("⚠️ Alpha Vantage daily API limit reached (25 calls). Earnings surprise data may be incomplete.")
 
 # Display dataframe
 df = pd.DataFrame(results).fillna(0)
@@ -163,7 +147,7 @@ st.markdown("""
 **📘 Investment Score Explained:**
 - **Growth (35%)**: Revenue and EPS growth (YoY).
 - **Momentum (20%)**: 12-month price performance.
-- **Quality (20%)**: Return on equity and ROIC.
+- **Quality (20%)**: Return on equity and profit margin.
 - **Earnings Momentum (15%)**: Latest earnings surprise (% vs. estimate).
 - **Valuation (10%)**: Moderate P/E rewarded (below 50).
 Scores are normalized and scaled from 1 to 100.
@@ -184,7 +168,7 @@ st.download_button(
 
 # Heatmap
 st.subheader("🔥 Interactive Heatmap of Key Metrics")
-heatmap_df = df.set_index("Ticker")[["Rev Growth", "EPS Growth", "Earnings Surprise (%)", "ROE", "ROIC", "RSI", "12M Perf", "Investment Score (1–10)"]]
+heatmap_df = df.set_index("Ticker")[["Rev Growth", "EPS Growth", "Earnings Surprise (%)", "ROE", "Profit Margin (%)", "RSI", "12M Perf", "Investment Score (1–100)"]]
 z = heatmap_df.values
 x = heatmap_df.columns.tolist()
 y = heatmap_df.index.tolist()
@@ -209,13 +193,13 @@ st.plotly_chart(fig_heatmap, use_container_width=True)
 # Bar plot of investment scores
 st.subheader("🏆 Investment Score by Ticker")
 fig2 = px.bar(
-    df.sort_values("Investment Score (1–10)", ascending=False),
+    df.sort_values("Investment Score (1–100)", ascending=False),
     x="Ticker",
-    y="Investment Score (1–10)",
-    color="Investment Score (1–10)",
+    y="Investment Score (1–100)",
+    color="Investment Score (1–100)",
     color_continuous_scale="tempo",
     title="Investment Score Ranking",
-    labels={"Investment Score (1–10)": "Score"}
+    labels={"Investment Score (1–100)": "Score"}
 )
 st.plotly_chart(fig2, use_container_width=True)
 
