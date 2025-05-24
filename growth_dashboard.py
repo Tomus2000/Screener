@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 st.set_page_config(layout="wide")
 
 st.title("📊 Growth Stock Screener Dashboard")
-st.markdown("Analyze growth, quality, momentum, valuation, and dividend metrics across your custom watchlist.")
+st.markdown("Analyze growth, quality, momentum, valuation, and dividend metrics across your custom watchlist. Designed by Tom")
 
 # Sidebar input
 st.sidebar.header("⚙️ Stock Selection")
