@@ -75,7 +75,7 @@ with st.spinner("Fetching data..."):
             eps_growth = eps_growth if eps_growth is not None else fundamentals.get("metric", {}).get("epsGrowth")
             rev_growth = rev_growth if rev_growth is not None else fundamentals.get("metric", {}).get("revenueGrowthYearOverYear")
             roe = roe if roe is not None else fundamentals.get("metric", {}).get("roe")
-            #dividend_yield = dividend_yield if dividend_yield is not None else fundamentals.get("metric", {}).get("dividendYieldIndicatedAnnual")
+            dividend_yield = dividend_yield if dividend_yield is not None else fundamentals.get("metric", {}).get("dividendYieldIndicatedAnnual")
             perf_12m = perf_12m if perf_12m is not None else fundamentals.get("metric", {}).get("52WeekPriceReturnDaily")
             profit_margin = fundamentals.get("metric", {}).get("netProfitMarginAnnual")
 
@@ -137,14 +137,14 @@ with st.spinner("Fetching data..."):
                 "RSI": round(latest_rsi, 2) if latest_rsi else None,
                 "12M Perf": perf_12m,
                 "Investment Score (1–100)": round(investment_score, 2),
-                #"Dividend Yield (%)": round(dividend_yield * 100, 2) if dividend_yield else 0
-            })
+                            })
 
         except Exception as e:
             st.warning(f"Error with {ticker}: {e}")
 
 # Display dataframe
 df = pd.DataFrame(results).fillna(0)
+df = df[df["Investment Score (1–100)"] >= min_score]
 st.subheader("📋 Screener Table")
 st.dataframe(df.set_index("Ticker"))
 
