@@ -110,22 +110,22 @@ with st.spinner("Fetching data..."):
             roic = max(min(roic or 0, 2), -1)
 
             earnings_surprise = get_earnings_surprise(ticker)
-            earnings_surprise_score = min(max((earnings_surprise or 0) / 100, -1), 2)
+            earnings_surprise_score = max(min((earnings_surprise or 0) / 50, 1), -1)
 
             growth_score = np.mean([rev_growth, eps_growth])
             quality_score = np.mean([roe, roic])
             momentum_score = perf_12m
-            valuation_score = -pe if pe else 0
+            valuation_score = max(min((50 - pe) / 50, 1), -1) if pe else 0
 
             raw_score = (
-                0.35 * growth_score +
-                0.2 * momentum_score +
-                0.2 * quality_score +
-                0.15 * earnings_surprise_score +
-                0.1 * valuation_score
-            )
+    0.35 * growth_score +
+    0.2 * momentum_score +
+    0.2 * quality_score +
+    0.15 * earnings_surprise_score +
+    0.1 * valuation_score
+)
 
-            investment_score = max(1, min(10, ((raw_score + 1) * 5)))
+            investment_score = max(1, min(100, ((raw_score + 1) * 50)))
 
             results.append({
                 "Ticker": ticker,
@@ -165,8 +165,8 @@ st.markdown("""
 - **Momentum (20%)**: 12-month price performance.
 - **Quality (20%)**: Return on equity and ROIC.
 - **Earnings Momentum (15%)**: Latest earnings surprise (% vs. estimate).
-- **Valuation (10%)**: Lower P/E is rewarded.
-Scores are normalized and clipped to avoid outliers.
+- **Valuation (10%)**: Moderate P/E rewarded (below 50).
+Scores are normalized and scaled from 1 to 100.
 """)
 
 # Excel export
