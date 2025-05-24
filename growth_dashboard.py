@@ -47,7 +47,7 @@ results = []
 def get_earnings_surprise(ticker):
     global alpha_calls_today
     if alpha_calls_today >= alpha_max_calls:
-        return None  # Limit hit; skip this call
+        return None
 
     url = f"https://www.alphavantage.co/query?function=EARNINGS&symbol={ticker}&apikey={ALPHA_VANTAGE_API_KEY}"
     try:
@@ -73,7 +73,6 @@ with st.spinner("Fetching data..."):
             info = stock.info
             history = stock.history(period="6mo", interval="1d")
 
-            # RSI calculation
             delta = history['Close'].diff()
             gain = delta.clip(lower=0).rolling(window=14).mean()
             loss = -delta.clip(upper=0).rolling(window=14).mean()
@@ -81,7 +80,6 @@ with st.spinner("Fetching data..."):
             RSI = 100 - (100 / (1 + RS))
             latest_rsi = RSI.iloc[-1] if not RSI.empty else None
 
-            # Metrics with clipping
             pe = info.get("trailingPE", None)
             if pe is not None:
                 pe = min(pe, 100)
@@ -90,10 +88,8 @@ with st.spinner("Fetching data..."):
             roe = max(min(info.get("returnOnEquity", 0), 2), -1)
             perf_12m = max(min(info.get("52WeekChange", 0), 2), -1)
 
-            # PEG calculation
             peg = (pe / (rev_growth * 100)) if pe and rev_growth else None
 
-            # ROIC calculation
             bs = stock.balance_sheet
             is_ = stock.financials
             try:
@@ -113,22 +109,23 @@ with st.spinner("Fetching data..."):
 
             roic = max(min(roic or 0, 2), -1)
 
-            # Scores
+            earnings_surprise = get_earnings_surprise(ticker)
+            earnings_surprise_score = min(max((earnings_surprise or 0) / 100, -1), 2)
+
             growth_score = np.mean([rev_growth, eps_growth])
             quality_score = np.mean([roe, roic])
             momentum_score = perf_12m
             valuation_score = -pe if pe else 0
 
             raw_score = (
-                0.4 * growth_score +
+                0.35 * growth_score +
                 0.2 * momentum_score +
                 0.2 * quality_score +
-                0.2 * valuation_score
+                0.15 * earnings_surprise_score +
+                0.1 * valuation_score
             )
 
             investment_score = max(1, min(10, ((raw_score + 1) * 5)))
-
-            earnings_surprise = get_earnings_surprise(ticker)
 
             results.append({
                 "Ticker": ticker,
@@ -161,6 +158,16 @@ with st.spinner("Fetching data..."):
 df = pd.DataFrame(results).fillna(0)
 st.subheader("📋 Screener Table")
 st.dataframe(df.set_index("Ticker"))
+
+st.markdown("""
+**📘 Investment Score Explained:**
+- **Growth (35%)**: Revenue and EPS growth (YoY).
+- **Momentum (20%)**: 12-month price performance.
+- **Quality (20%)**: Return on equity and ROIC.
+- **Earnings Momentum (15%)**: Latest earnings surprise (% vs. estimate).
+- **Valuation (10%)**: Lower P/E is rewarded.
+Scores are normalized and clipped to avoid outliers.
+""")
 
 # Excel export
 @st.cache_data
