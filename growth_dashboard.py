@@ -27,7 +27,7 @@ st.markdown("Analyze growth, quality, momentum, valuation, and dividend metrics 
 st.sidebar.header("⚙️ Stock Selection")
 tickers_input = st.sidebar.text_input(
     "Enter tickers (comma-separated)", 
-    value="AXON, CELH, DUOL, INTA, IOT, APP, ENPH, ON, DT, GLOB, ADYEN"
+    value="AXON, CELH, DUOL, INTA, IOT, APP, ENPH, ON, DT, GLOB"
 )
 
 # Filters
