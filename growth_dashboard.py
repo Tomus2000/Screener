@@ -78,6 +78,7 @@ with st.spinner("Fetching data..."):
             dividend_yield = dividend_yield if dividend_yield is not None else fundamentals.get("metric", {}).get("dividendYieldIndicatedAnnual")
             perf_12m = perf_12m if perf_12m is not None else fundamentals.get("metric", {}).get("52WeekPriceReturnDaily")
             profit_margin = fundamentals.get("metric", {}).get("netProfitMarginAnnual")
+            beta = info.get("beta") or fundamentals.get("metric", {}).get("beta")
 beta = info.get("beta") or fundamentals.get("metric", {}).get("beta")
 
             # PEG
@@ -236,4 +237,3 @@ st.plotly_chart(fig3, use_container_width=True)
 # Highlight best growth stock
 top_growth = df.sort_values("Rev Growth", ascending=False).iloc[0]["Ticker"]
 st.success(f"📈 Best Growth: {top_growth}")
-
