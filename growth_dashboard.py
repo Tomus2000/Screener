@@ -57,13 +57,32 @@ with st.spinner("Fetching data..."):
             if not hist_5y.empty:
                 price_data[ticker] = hist_5y['Close']
 
-            # Finnhub data
-            profile = get_finnhub_json("stock/profile2", {"symbol": ticker})
-            quote = get_finnhub_json("quote", {"symbol": ticker})
-            fundamentals = get_finnhub_json("stock/metric", {"symbol": ticker, "metric": "all"})
-            earnings = get_finnhub_json("stock/earnings", {"symbol": ticker})
+            # Try Yahoo Finance for fundamentals first
+info = stock.info
+pe = info.get("trailingPE")
+eps_growth = info.get("earningsQuarterlyGrowth")
+rev_growth = info.get("revenueGrowth")
+roe = info.get("returnOnEquity")
+dividend_yield = info.get("dividendYield")
+perf_12m = info.get("52WeekChange")
 
-            # Metrics
+# If any are None, try Finnhub as fallback
+profile = get_finnhub_json("stock/profile2", {"symbol": ticker})
+fundamentals = get_finnhub_json("stock/metric", {"symbol": ticker, "metric": "all"})
+earnings = get_finnhub_json("stock/earnings", {"symbol": ticker})
+
+pe = pe if pe is not None else fundamentals.get("metric", {}).get("peNormalizedAnnual")
+eps_growth = eps_growth if eps_growth is not None else fundamentals.get("metric", {}).get("epsGrowth")
+rev_growth = rev_growth if rev_growth is not None else fundamentals.get("metric", {}).get("revenueGrowthYearOverYear")
+roe = roe if roe is not None else fundamentals.get("metric", {}).get("roe")
+dividend_yield = dividend_yield if dividend_yield is not None else fundamentals.get("metric", {}).get("dividendYieldIndicatedAnnual")
+perf_12m = perf_12m if perf_12m is not None else fundamentals.get("metric", {}).get("52WeekPriceReturnDaily")
+
+# PEG
+peg = (pe / (rev_growth * 100)) if pe and rev_growth else None
+
+# Profit margin (instead of ROIC)
+profit_margin = fundamentals.get("metric", {}).get("netProfitMarginAnnual")
             pe = fundamentals.get("metric", {}).get("peNormalizedAnnual")
             eps_growth = fundamentals.get("metric", {}).get("epsGrowth")
             rev_growth = fundamentals.get("metric", {}).get("revenueGrowthYearOverYear")
@@ -120,8 +139,8 @@ with st.spinner("Fetching data..."):
 
             results.append({
                 "Ticker": ticker,
-                "Company": profile.get("name", ""),
-                "Industry": profile.get("finnhubIndustry", ""),
+                "Company": profile.get("name") or info.get("shortName", ""),
+                "Industry": profile.get("finnhubIndustry") or info.get("industry", ""),
                 "PE": pe,
                 "PEG": round(peg, 2) if peg else None,
                 "Rev Growth": rev_growth,
