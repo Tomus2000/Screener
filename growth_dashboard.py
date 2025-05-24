@@ -79,7 +79,6 @@ with st.spinner("Fetching data..."):
             perf_12m = perf_12m if perf_12m is not None else fundamentals.get("metric", {}).get("52WeekPriceReturnDaily")
             profit_margin = fundamentals.get("metric", {}).get("netProfitMarginAnnual")
             beta = info.get("beta") or fundamentals.get("metric", {}).get("beta")
-beta = info.get("beta") or fundamentals.get("metric", {}).get("beta")
 
             # PEG
             peg = (pe / (rev_growth * 100)) if pe and rev_growth else None
