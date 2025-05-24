@@ -33,7 +33,7 @@ tickers_input = st.sidebar.text_input(
 # Filters
 st.sidebar.subheader("🔍 Filters")
 min_score = st.sidebar.slider("Minimum Investment Score", 1, 100, 1)
-min_yield = st.sidebar.slider("Minimum Dividend Yield (%)", 0.0, 10.0, 0.0)
+#min_yield = st.sidebar.slider("Minimum Dividend Yield (%)", 0.0, 10.0, 0.0)
 
 # Convert user input into a list
 watchlist = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
@@ -75,7 +75,6 @@ with st.spinner("Fetching data..."):
             eps_growth = eps_growth if eps_growth is not None else fundamentals.get("metric", {}).get("epsGrowth")
             rev_growth = rev_growth if rev_growth is not None else fundamentals.get("metric", {}).get("revenueGrowthYearOverYear")
             roe = roe if roe is not None else fundamentals.get("metric", {}).get("roe")
-            dividend_yield = dividend_yield if dividend_yield is not None else fundamentals.get("metric", {}).get("dividendYieldIndicatedAnnual")
             perf_12m = perf_12m if perf_12m is not None else fundamentals.get("metric", {}).get("52WeekPriceReturnDaily")
             profit_margin = fundamentals.get("metric", {}).get("netProfitMarginAnnual")
 
