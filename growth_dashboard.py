@@ -33,7 +33,7 @@ tickers_input = st.sidebar.text_input(
 # Filters
 st.sidebar.subheader("🔍 Filters")
 min_score = st.sidebar.slider("Minimum Investment Score", 1, 100, 1)
-min_yield = st.sidebar.slider("Minimum Dividend Yield (%)", 0.0, 10.0, 0.0)
+
 
 # Convert user input into a list
 watchlist = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
