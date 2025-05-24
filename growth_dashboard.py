@@ -48,6 +48,101 @@ def get_finnhub_json(endpoint, params):
     response = requests.get(f"{finnhub_url}/{endpoint}", params=params)
     return response.json() if response.status_code == 200 else {}
 
+with st.spinner("Fetching data..."):
+    for ticker in watchlist:
+        try:
+            # Use yfinance for price charting only
+            stock = yf.Ticker(ticker)
+            hist_5y = stock.history(period="5y", interval="1d")
+            if not hist_5y.empty:
+                price_data[ticker] = hist_5y['Close']
+
+            # Try Yahoo Finance for fundamentals first
+            info = stock.info
+            pe = info.get("trailingPE")
+            eps_growth = info.get("earningsQuarterlyGrowth")
+            rev_growth = info.get("revenueGrowth")
+            roe = info.get("returnOnEquity")
+            dividend_yield = info.get("dividendYield")
+            perf_12m = info.get("52WeekChange")
+
+            # If any are None, try Finnhub as fallback
+            profile = get_finnhub_json("stock/profile2", {"symbol": ticker})
+            fundamentals = get_finnhub_json("stock/metric", {"symbol": ticker, "metric": "all"})
+            earnings = get_finnhub_json("stock/earnings", {"symbol": ticker})
+
+            pe = pe if pe is not None else fundamentals.get("metric", {}).get("peNormalizedAnnual")
+            eps_growth = eps_growth if eps_growth is not None else fundamentals.get("metric", {}).get("epsGrowth")
+            rev_growth = rev_growth if rev_growth is not None else fundamentals.get("metric", {}).get("revenueGrowthYearOverYear")
+            roe = roe if roe is not None else fundamentals.get("metric", {}).get("roe")
+            dividend_yield = dividend_yield if dividend_yield is not None else fundamentals.get("metric", {}).get("dividendYieldIndicatedAnnual")
+            perf_12m = perf_12m if perf_12m is not None else fundamentals.get("metric", {}).get("52WeekPriceReturnDaily")
+            profit_margin = fundamentals.get("metric", {}).get("netProfitMarginAnnual")
+
+            # PEG
+            peg = (pe / (rev_growth * 100)) if pe and rev_growth else None
+
+            # RSI using yfinance data
+            history = stock.history(period="6mo", interval="1d")
+            delta = history['Close'].diff()
+            gain = delta.clip(lower=0).rolling(window=14).mean()
+            loss = -delta.clip(upper=0).rolling(window=14).mean()
+            RS = gain / loss
+            RSI = 100 - (100 / (1 + RS))
+            latest_rsi = RSI.iloc[-1] if not RSI.empty else None
+
+            # Earnings Surprise
+            try:
+                latest_earn = earnings[0]
+                actual_eps = latest_earn.get("actual")
+                estimate_eps = latest_earn.get("estimate")
+                earnings_surprise = round((actual_eps - estimate_eps) / estimate_eps * 100, 2) if actual_eps and estimate_eps else 0
+            except:
+                earnings_surprise = 0
+
+            # Scores
+            eps_growth = max(min(eps_growth if eps_growth is not None else 0, 2), -1)
+            rev_growth = max(min(rev_growth if rev_growth is not None else 0, 2), -1)
+            roe = max(min(roe if roe is not None else 0, 2), -1)
+            perf_12m = max(min(perf_12m if perf_12m is not None else 0, 2), -1)
+            profit_margin = max(min(profit_margin if profit_margin is not None else 0, 2), -1)
+
+            earnings_surprise_score = max(min((earnings_surprise or 0) / 50, 1), -1)
+            growth_score = np.mean([rev_growth, eps_growth])
+            quality_score = np.mean([roe, profit_margin])
+            momentum_score = perf_12m
+            valuation_score = max(min((50 - pe) / 50, 1), -1) if pe else 0
+
+            raw_score = (
+                0.35 * growth_score +
+                0.2 * momentum_score +
+                0.2 * quality_score +
+                0.15 * earnings_surprise_score +
+                0.1 * valuation_score
+            )
+
+            investment_score = max(1, min(100, ((raw_score + 1) * 50)))
+
+            results.append({
+                "Ticker": ticker,
+                "Company": profile.get("name") or info.get("shortName", ""),
+                "Industry": profile.get("finnhubIndustry") or info.get("industry", ""),
+                "PE": pe,
+                "PEG": round(peg, 2) if peg else None,
+                "Rev Growth": rev_growth,
+                "EPS Growth": eps_growth,
+                "Earnings Surprise (%)": earnings_surprise,
+                "ROE": roe,
+                "Profit Margin (%)": round(profit_margin * 100, 2),
+                "RSI": round(latest_rsi, 2) if latest_rsi else None,
+                "12M Perf": perf_12m,
+                "Investment Score (1–100)": round(investment_score, 2),
+                "Dividend Yield (%)": round(dividend_yield * 100, 2) if dividend_yield else 0
+            })
+
+        except Exception as e:
+            st.warning(f"Error with {ticker}: {e}")
+
 # Display dataframe
 df = pd.DataFrame(results).fillna(0)
 st.subheader("📋 Screener Table")
