@@ -34,6 +34,166 @@ tickers_input = st.sidebar.text_input(
 st.sidebar.subheader("🔍 Filters")
 min_score = st.sidebar.slider("Minimum Investment Score", 1, 100, 1)
 
+# =========================
+# === Portfolio input & overview (NEW)
+# =========================
+st.sidebar.header("📁 Portfolio Input")
+
+# CSV upload
+uploaded_csv = st.sidebar.file_uploader(
+    "Upload portfolio CSV (columns: Ticker, Buy Price, Quantity)",
+    type=["csv"]
+)
+
+# Manual input via data editor
+with st.sidebar.expander("➕ Add/modify positions manually"):
+    st.markdown("Enter **Ticker**, **Buy Price**, and **Quantity**. Leave empty rows to ignore.")
+    default_rows = pd.DataFrame({
+        "Ticker": ["", "", "", "", ""],
+        "Buy Price": [np.nan]*5,
+        "Quantity": [np.nan]*5
+    })
+    manual_df = st.data_editor(
+        default_rows,
+        num_rows="dynamic",
+        use_container_width=True
+    )
+
+# Parse CSV if provided
+csv_df = None
+if uploaded_csv is not None:
+    try:
+        csv_df = pd.read_csv(uploaded_csv)
+    except Exception as e:
+        st.sidebar.error(f"Could not read CSV: {e}")
+
+# Normalize and combine manual + CSV
+def _clean_portfolio(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["Ticker", "Buy Price", "Quantity"])
+    cols = {c.lower().strip(): c for c in df.columns}
+    # map expected columns safely
+    mapping = {}
+    for want in ["ticker", "buy price", "quantity"]:
+        # try exact
+        if want in cols:
+            mapping[cols[want]] = want.title()
+        else:
+            # loose match
+            for k, v in cols.items():
+                if want.replace(" ", "") == k.replace(" ", ""):
+                    mapping[v] = want.title()
+                    break
+    df = df.rename(columns=mapping)
+    needed = ["Ticker", "Buy Price", "Quantity"]
+    for n in needed:
+        if n not in df.columns:
+            df[n] = np.nan
+    df = df[needed]
+    # clean
+    df["Ticker"] = df["Ticker"].astype(str).str.upper().str.strip()
+    df["Buy Price"] = pd.to_numeric(df["Buy Price"], errors="coerce")
+    df["Quantity"] = pd.to_numeric(df["Quantity"], errors="coerce")
+    # drop empty/invalid
+    df = df.dropna(subset=["Ticker", "Buy Price", "Quantity"])
+    df = df[df["Ticker"] != ""]
+    df = df[df["Quantity"] != 0]
+    return df
+
+manual_clean = _clean_portfolio(manual_df)
+csv_clean = _clean_portfolio(csv_df)
+portfolio_input = pd.concat([csv_clean, manual_clean], ignore_index=True)
+# aggregate same tickers if duplicated across CSV/manual
+if not portfolio_input.empty:
+    portfolio_input = (
+        portfolio_input
+        .groupby("Ticker", as_index=False)
+        .agg({"Buy Price": "mean", "Quantity": "sum"})
+    )
+
+# Helper to fetch current prices
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_current_prices(tickers: list[str]) -> pd.Series:
+    prices = {}
+    if not tickers:
+        return pd.Series(dtype=float)
+    # batch fetch using Tickers for robustness
+    ts = yf.Tickers(" ".join(tickers))
+    for t in tickers:
+        p = None
+        try:
+            fi = getattr(ts, t).fast_info
+            p = fi.get("last_price", None)
+        except Exception:
+            p = None
+        if p is None:
+            # fallback: 1d history last close
+            try:
+                h = getattr(ts, t).history(period="1d")
+                if not h.empty:
+                    p = float(h["Close"].iloc[-1])
+            except Exception:
+                p = None
+        prices[t] = p if p is not None else np.nan
+    return pd.Series(prices, name="Current Price")
+
+# === Portfolio Overview in main area ===
+if not portfolio_input.empty:
+    st.header("📦 Portfolio Overview")
+    # pull current prices for portfolio tickers
+    current_px = fetch_current_prices(portfolio_input["Ticker"].unique().tolist())
+    port = portfolio_input.merge(
+        current_px.rename_axis("Ticker").reset_index(),
+        on="Ticker",
+        how="left"
+    )
+    port["Cost Basis"] = port["Buy Price"] * port["Quantity"]
+    port["Market Value"] = port["Current Price"] * port["Quantity"]
+    port["P/L"] = port["Market Value"] - port["Cost Basis"]
+    port["P/L %"] = np.where(
+        port["Cost Basis"] > 0, port["P/L"] / port["Cost Basis"] * 100, np.nan
+    )
+
+    totals = {
+        "Total Cost Basis": float(port["Cost Basis"].sum()),
+        "Total Market Value": float(port["Market Value"].sum()),
+        "Total P/L": float(port["P/L"].sum()),
+        "Total P/L %": float(
+            (port["Market Value"].sum() - port["Cost Basis"].sum()) / port["Cost Basis"].sum() * 100
+        ) if port["Cost Basis"].sum() > 0 else np.nan
+    }
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total Cost Basis", f"${totals['Total Cost Basis']:,.0f}")
+    c2.metric("Total Market Value", f"${totals['Total Market Value']:,.0f}")
+    c3.metric("Total P/L", f"${totals['Total P/L']:,.0f}",
+              delta=f"{totals['Total P/L %']:.2f}%" if pd.notna(totals["Total P/L %"]) else None)
+    c4.metric("Positions", f"{len(port)}")
+
+    # weights
+    mv_sum = port["Market Value"].sum()
+    port["Weight %"] = np.where(mv_sum > 0, port["Market Value"] / mv_sum * 100, 0.0)
+
+    st.subheader("🧾 Positions")
+    display_cols = ["Ticker", "Quantity", "Buy Price", "Current Price",
+                    "Cost Basis", "Market Value", "P/L", "P/L %", "Weight %"]
+    st.dataframe(
+        port[display_cols].set_index("Ticker").round(2),
+        use_container_width=True
+    )
+
+    # export enriched portfolio
+    @st.cache_data
+    def _portfolio_csv(df):
+        return df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "⬇️ Download Portfolio Overview (CSV)",
+        data=_portfolio_csv(port.round(4)),
+        file_name="portfolio_overview.csv",
+        mime="text/csv"
+    )
+
+# ---- Everything below remains your original screener logic ----
 
 # Convert user input into a list
 watchlist = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
@@ -134,12 +294,12 @@ with st.spinner("Fetching data..."):
                 "EPS Growth": eps_growth,
                 "Earnings Surprise (%)": earnings_surprise,
                 "ROE": roe,
-                "Profit Margin (%)": round(profit_margin * 100, 2),
+                "Profit Margin (%)": round(profit_margin * 100, 2) if profit_margin not in [None, 0] else 0,
                 "Beta": round(beta, 2) if beta else None,
                 "RSI": round(latest_rsi, 2) if latest_rsi else None,
                 "12M Perf": perf_12m,
                 "Investment Score (1–100)": round(investment_score, 2),
-                            })
+            })
 
         except Exception as e:
             st.warning(f"Error with {ticker}: {e}")
@@ -215,10 +375,9 @@ st.plotly_chart(fig2, use_container_width=True)
 
 # Line chart
 st.subheader("📈 5-Year Price Performance")
+price_data = {k: v for k, v in price_data.items() if k in df['Ticker'].values}
 fig3 = go.Figure()
 for ticker, prices in price_data.items():
-    if ticker not in df['Ticker'].values:
-        continue
     fig3.add_trace(go.Scatter(
         x=prices.index,
         y=prices.values,
@@ -234,5 +393,6 @@ fig3.update_layout(
 st.plotly_chart(fig3, use_container_width=True)
 
 # Highlight best growth stock
-top_growth = df.sort_values("Rev Growth", ascending=False).iloc[0]["Ticker"]
-st.success(f"📈 Best Growth: {top_growth}")
+if not df.empty:
+    top_growth = df.sort_values("Rev Growth", ascending=False).iloc[0]["Ticker"]
+    st.success(f"📈 Best Growth: {top_growth}")
