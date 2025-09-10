@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Growth Stock Screener Dashboard using Finnhub and YFinance"""
+"""INVESTMENT COCKPIT"""
 
 import requests, time
 FINNHUB_API_KEY = "d0hiea9r01qup0c6eeugd0hiea9r01qup0c6eev0"
