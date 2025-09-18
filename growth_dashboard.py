@@ -378,3 +378,29 @@ st.plotly_chart(fig3, use_container_width=True)
 if not df.empty:
     top_growth = df.sort_values("Rev Growth", ascending=False).iloc[0]["Ticker"]
     st.success(f"📈 Best Growth: {top_growth}")
+
+# === ANALYZE YOUR PORTFOLIO STOCKS BASED ON SCREENED FACTORS ===
+if not portfolio_input.empty and not df.empty:
+    st.header("🔍 Portfolio Stocks – Factor Breakdown")
+
+    portfolio_tickers = portfolio_input["Ticker"].unique().tolist()
+    portfolio_factors = df[df["Ticker"].isin(portfolio_tickers)]
+
+    if portfolio_factors.empty:
+        st.warning("None of your portfolio tickers were found in the screener results.")
+    else:
+        st.dataframe(
+            portfolio_factors.set_index("Ticker").round(2),
+            use_container_width=True
+        )
+
+        st.markdown("""
+        This table shows key factor data for the stocks you currently hold:
+        - **Rev Growth & EPS Growth**: Revenue and earnings growth
+        - **PE / PEG**: Valuation metrics
+        - **ROE, Profit Margin**: Quality indicators
+        - **Earnings Surprise**: Last earnings performance
+        - **RSI, 12M Perf**: Momentum
+        - **Investment Score**: Composite score from all metrics
+        """)
+
